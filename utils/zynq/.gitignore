@@ -1,0 +1,7 @@
+*.swp
+*~
+*.jou
+*.log
+*.debug
+*.str
+out

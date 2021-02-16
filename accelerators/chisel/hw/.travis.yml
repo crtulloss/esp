@@ -1,0 +1,23 @@
+language: scala
+dist: xenial
+
+cache:
+  directories:
+    $HOME/.ivy2
+    $HOME/.sbt
+
+git:
+  depth: 10
+
+env:
+  global:
+    SBT_ARGS="-Dsbt.log.noformat=true"
+
+jobs:
+  include:
+    - stage: test
+      name: "test"
+      script: sbt $SBT_ARGS test
+    -
+      name: "run"
+      script: sbt $SBT_ARGS run
