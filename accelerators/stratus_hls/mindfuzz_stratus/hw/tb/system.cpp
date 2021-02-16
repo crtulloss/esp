@@ -125,9 +125,9 @@ void system_t::load_memory()
 
     // read input data into 2D array from CSV file
 #if (FX_WIDTH == 16)
-    std::ifstream indata("../sw/m2/float16/data.csv");
+    std::ifstream indata("../data/m2/float16/data.csv");
 #else // 32
-    std::ifstream indata("../sw/m2/data_32.csv");
+    std::ifstream indata("../data/m2/data_32.csv");
 #endif
     std::string line;
     std::vector<std::vector<std::string> > parsedCSV;
@@ -184,9 +184,9 @@ void system_t::load_memory()
     // read output (weight) data from CSV file into 2D array
     // I concatenated all the data into one file
 #if (FX_WIDTH == 16)
-    std::ifstream wdata("../sw/m2/float16/h.csv");
+    std::ifstream wdata("../data/m2/float16/h.csv");
 #else // 32
-    std::ifstream wdata("../sw/m2/h.csv");
+    std::ifstream wdata("../data/m2/h.csv");
 #endif
     std::string wline;
     std::vector<std::vector<std::string> > parsed_weights;
