@@ -54,6 +54,11 @@ if {$TECH eq "gf12"} {
     set SIM_CLOCK_PERIOD 1.0
     set_attr default_input_delay      0.1
 }
+if {$TECH eq "tsmc130"} {
+    set CLOCK_PERIOD 1.0
+    set SIM_CLOCK_PERIOD 1.0
+    set_attr default_input_delay      0.1
+}
 set_attr clock_period $CLOCK_PERIOD
 
 
