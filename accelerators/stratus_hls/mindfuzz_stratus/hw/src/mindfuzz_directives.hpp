@@ -6,10 +6,13 @@
 
 // added by CRT - related to datatypes
 // use fixed point data type
-#define FX_WIDTH 32
+
+// integer lengths for different fixed-point widths
 #define FX64_IL 15
 #define FX32_IL 15
 #define FX16_IL 8 // TODO what is the correct length?
+
+// directives to use all the time (HLS and BEH)
 
 // to test whether applying learning rate in stages gives same result
 // as single learning rate
@@ -17,12 +20,7 @@
 // testing beh using fixed point
 #define HLS_FP
 
-
-// for ASIC synth with no memory banks
-//#define ASIC_FLATTEN
-
-
-
+// directives specific to fixed-point data types
 
 #if (FX_WIDTH == 32)
 
@@ -58,6 +56,8 @@
 
 #endif
 
+// ESP directives for HLS tool
+
 #if defined(STRATUS_HLS)
 
 // auto generated stuff
@@ -76,7 +76,15 @@
 #define HLS_UNROLL_SIMPLE                       \
     HLS_UNROLL_LOOP(ON)
 
+
+// directives for specific HLS configurations
+
 #if defined(HLS_DIRECTIVES_BASIC)
+
+#elif defined(HLS_DIRECTIVES_FLAT)
+
+// for ASIC synth with no memory banks
+//#define ASIC_FLATTEN
 
 #else
 

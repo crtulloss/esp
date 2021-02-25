@@ -79,20 +79,22 @@ define_system_module tb ../tb/system.cpp ../tb/sc_main.cpp
 set DEFAULT_ARGV ""
 
 foreach dma [list 32 64] {
-    define_io_config * IOCFG_DMA$dma -DDMA_WIDTH=$dma
+    foreach fx [list 32] {
+        define_io_config * IOCFG_FX$fx\_DMA$dma -DFX_WIDTH=$fx -DDMA_WIDTH=$dma
 
-    define_system_config tb TESTBENCH_DMA$dma -io_config IOCFG_DMA$dma
+        define_system_config tb TESTBENCH_FX$fx\_DMA$dma -io_config IOCFG_FX$fx\_DMA$dma
 
-    define_sim_config "BEHAV_DMA$dma" "mindfuzz BEH" "tb TESTBENCH_DMA$dma" -io_config IOCFG_DMA$dma -argv $DEFAULT_ARGV
+        define_sim_config "BEHAV_FX$fx\_DMA$dma" "mindfuzz BEH" "tb TESTBENCH_FX$fx\_DMA$dma" -io_config IOCFG_FX$fx\_DMA$dma -argv $DEFAULT_ARGV
 
-    foreach cfg [list BASIC] {
-	set cname $cfg\_DMA$dma
-	define_hls_config mindfuzz $cname -io_config IOCFG_DMA$dma --clock_period=$CLOCK_PERIOD $COMMON_HLS_FLAGS -DHLS_DIRECTIVES_$cfg
-	if {$TECH_IS_XILINX == 1} {
-	    define_sim_config "$cname\_V" "mindfuzz RTL_V $cname" "tb TESTBENCH_DMA$dma" -io_config IOCFG_DMA$dma -argv $DEFAULT_ARGV -verilog_top_modules glbl
-	} else {
-	    define_sim_config "$cname\_V" "mindfuzz RTL_V $cname" "tb TESTBENCH_DMA$dma" -io_config IOCFG_DMA$dma -argv $DEFAULT_ARGV
-	}
+        foreach cfg [list BASIC] {
+	    set cname $cfg\_FX$fx\_DMA$dma
+            define_hls_config mindfuzz $cname -io_config IOCFG_FX$fx\_DMA$dma --clock_period=$CLOCK_PERIOD $COMMON_HLS_FLAGS -DHLS_DIRECTIVES_$cfg
+            if {$TECH_IS_XILINX == 1} {
+                define_sim_config "$cname\_V" "mindfuzz RTL_V $cname" "tb TESTBENCH_FX$fx\_DMA$dma" -io_config IOCFG_FX$fx\_DMA$dma -argv $DEFAULT_ARGV -verilog_top_modules glbl
+            } else {
+                define_sim_config "$cname\_V" "mindfuzz RTL_V $cname" "tb TESTBENCH_FX$fx\_DMA$dma" -io_config IOCFG_FX$fx\_DMA$dma -argv $DEFAULT_ARGV
+            }
+        }
     }
 }
 
