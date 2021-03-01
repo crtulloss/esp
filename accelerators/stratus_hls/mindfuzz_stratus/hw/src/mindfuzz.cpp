@@ -141,7 +141,7 @@ void mindfuzz::load_input()
                     sc_dt::sc_bv<DMA_WIDTH> dataBv;
 
                     dataBv = this->dma_read_chnl.get();
-                    wait(2);
+                    wait();
 
                     // Write to PLM (all DMA_WORD_PER_BEAT words in one cycle)
                     for (uint16_t k = 0; k < DMA_WORD_PER_BEAT; k++)
