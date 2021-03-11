@@ -72,8 +72,8 @@ void mindfuzz::load_input()
 
     // Load
     {
-        //HLS_PROTO("load-dma");
-        //wait();
+        HLS_PROTO("load-dma");
+        wait();
 
         bool ping = true;
         uint32_t offset = 0;
@@ -81,7 +81,7 @@ void mindfuzz::load_input()
         // Batching
         for (uint16_t b = 0; b < num_loads; b++)
         {
-            //wait();
+            wait();
 
 // for 16b data, DMA_WORD_PER_BEAT = 2
 // DMA_WORD_PER_BEAT would equal 0 if WORD size > BEAT size
@@ -90,14 +90,14 @@ void mindfuzz::load_input()
 #else
             // broke up this computation and added some waits in order to improve schedule
             uint32_t length_dum = num_windows*window_size*tsamps_perbatch*batches_perload;
-            //wait();
+            wait();
             uint32_t length = round_up(length_dum, DMA_WORD_PER_BEAT);
 #endif
-            //wait();
+            wait();
             // Chunking - in this case, no chunk, so one iteration per batch
             for (int rem = length; rem > 0; rem -= PLM_IN_WORD)
             {
-                //wait();
+                wait();
                 // Configure DMA transaction
                 uint32_t len = rem > PLM_IN_WORD ? PLM_IN_WORD : rem;
 #if (DMA_WORD_PER_BEAT == 0)
@@ -108,8 +108,8 @@ void mindfuzz::load_input()
 #endif
                 offset += len;
 
-                {
-                HLS_PROTO("load-dma");
+                //{
+                //HLS_PROTO("load-dma");
 
                 this->dma_read_ctrl.put(dma_info);
 
@@ -155,7 +155,7 @@ void mindfuzz::load_input()
                 }
 #endif
 
-                } // end of protocol region
+                //} // end of protocol region
 
                 this->load_compute_handshake();
                 ping = !ping;
