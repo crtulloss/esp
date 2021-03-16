@@ -10,16 +10,19 @@ module generic_sram
     input [dbits-1:0] d1,
     output [dbits-1:0] q0,
     output [dbits-1:0] q1,
-    input wen0,
-    input wen1
+    input we0,
+    input we1
 );
+
+    reg [dbits-1:0] q0;
+    reg [dbits-1:0] q1;
 
     reg [dbits-1:0] mem [2**abits-1:0];
 
     always @(posedge clk) begin
-        if (wen0)
+        if (we0)
             mem[a0] <= d0;
-        if (wen1)
+        if (we1)
             mem[a1] <= d1;
         q0 <= mem[a0];
         q1 <= mem[a1];

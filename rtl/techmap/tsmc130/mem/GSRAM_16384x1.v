@@ -1,17 +1,19 @@
 `timescale 1 ps / 1 ps
 // Copyright (c) 2014-2015, Columbia University
-module GSRAM_16384x1( CLK, A0, D0, Q0, WE0, CE0, A1, D1, Q1, WE1, CE1 );
+module GSRAM_16384x1( CLK, A0, D0, Q0, WE0, WEM0, CE0, A1, D1, Q1, WE1, WEM1, CE1 );
 
     input CLK;
     input [13:0] A0;
     input D0;
     output Q0;
     input WE0;
+    input WEM0;
     input CE0;
     input [13:0] A1;
     input D1;
     output Q1;
     input WE1;
+    input WEM1;
     input CE1;
 
     reg [13:0]  ADDR0;
