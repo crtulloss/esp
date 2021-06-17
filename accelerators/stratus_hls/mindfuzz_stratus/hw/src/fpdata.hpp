@@ -10,10 +10,13 @@
 #include <systemc.h>
 
 // Data types - modified from fft version to allow for either fixed pt or native
+// further modified to allow for cynw floating pt
 
-// if using HLS, need to use fixed point data type
+// for HLS we are interested in cynw (synthable) data types,
+// either fixed or floating
 #ifdef HLS_FP
 
+#if (USE_FX == 1)
 // Stratus fixed point
 #include "cynw_fixed.h"
 
@@ -29,26 +32,16 @@ const unsigned int FPDATA_IL = FX16_IL;
 #endif // FX_WIDTH
 const unsigned int FPDATA_PL = (FPDATA_WL - FPDATA_IL);
 
+// define the fixed point data type
 typedef cynw_fixed<FPDATA_WL, FPDATA_IL, SC_RND> FPDATA;
 
 // define the generic "TYPE" as the newly typedefd FPDATA
 #define TYPE FPDATA
 
-#else // !HLS_FP
-
-// use float instead - note that this requires 32 bit words
-const unsigned int WORD_SIZE = 32;
-#define TYPE float
-
-#endif // HLS_FP
-
-// this part is necessary whether we use native or fixed point
+// define the data type that will be used for PLMs
 typedef sc_dt::sc_int<WORD_SIZE> FPDATA_WORD;
 
-// Helper functions
-
-#ifdef HLS_FP
-
+// helper functions
 template<typename T, size_t N>
 T bv2fp(sc_dt::sc_bv<N> data_in)
 {
@@ -189,10 +182,136 @@ void fp2int(sc_dt::sc_int<N> &data_out, T data_in)
     }
 }
 
+#else // !USE_FX
+// Stratus floating point
+#include "cynw_cm_float.h"
+
+const unsigned int WORD_SIZE = FL_WIDTH;
+// this part only applies to fixed point data
+const unsigned int FPDATA_WL = FL_WIDTH;
+#if (FL_WIDTH==32)
+const unsigned int FPDATA_ML = FL32_ML;
+#elif (FL_WIDTH==16)
+const unsigned int FPDATA_ML = FL16_ML;
+#elif (FL_WIDTH==8)
+const unsigned int FPDATA_ML = FL08_ML;
+#endif // FL_WIDTH
+const unsigned int FPDATA_EL = (FPDATA_WL - FPDATA_ML - 1);
+
+// define the floating point type
+typedef cynw_cm_float<FPDATA_EL, FPDATA_ML, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> FPDATA;
+
+// define the generic "TYPE" as the newly typedefd FPDATA
+#define TYPE FPDATA
+
+// define the data type that will be used for PLMs
+typedef sc_dt::sc_uint<WORD_SIZE> FPDATA_WORD;
+
+// Helper functions
+
+// T <---> sc_dt::sc_uint<N>
+
+template<typename T, size_t N>
+T int2fp(sc_dt::sc_uint<N> data_in)
+{
+    T data_out;
+
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "uint2fp1");
+
+        data_out.raw_bits(data_in);
+        return data_out;
+    }
+}
+
+template<typename T, size_t N>
+void int2fp(T &data_out, sc_dt::sc_uint<N> data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "uint2fp2");
+
+        data_out.raw_bits(data_in);
+    }
+}
+
+template<typename T, size_t N>
+sc_dt::sc_uint<N> fp2int(T data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "fp2uint1");
+
+        return sc_dt::sc_uint<N>(data_in.raw_bits());
+     }
+}
+
+template<typename T, size_t N>
+void fp2int(sc_dt::sc_uint<N> &data_out, T data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "fp2uint2");
+
+        data_out = sc_dt::sc_uint<N>(data_in.raw_bits());
+     }
+}
+
+
+// T <---> sc_dt::sc_bv<N>
+
+template<typename T, size_t N>
+T bv2fp(sc_dt::sc_bv<N> data_in)
+{
+    T data_out;
+
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "bv2fp1");
+
+        data_out.raw_bits(data_in);
+        return data_out;
+    }
+}
+
+template<typename T, size_t N>
+void bv2fp(T &data_out, sc_dt::sc_bv<N> data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "bv2fp2");
+
+        data_out.raw_bits(data_in.to_uint64());
+    }
+}
+
+template<typename T, size_t N>
+sc_dt::sc_bv<N> fp2bv(T data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "fp2bv1");
+
+        return sc_dt::sc_bv<N>(data_in.raw_bits());
+     }
+}
+
+template<typename T, size_t N>
+void fp2bv(sc_dt::sc_bv<N> &data_out, T data_in)
+{
+    {
+        HLS_CONSTRAIN_LATENCY(0, HLS_ACHIEVABLE, "fp2bv2");
+
+        data_out = sc_dt::sc_bv<N>(data_in.raw_bits());
+     }
+}
+       
+#endif // USE_FX - end of cynw floating point
 
 #else // !HLS_FP
 
-// native types
+// use native float instead - note that this requires 32 bit words
+const unsigned int WORD_SIZE = 32;
+#define TYPE float
+
+// define data type for use in PLMs
+typedef sc_dt::sc_int<WORD_SIZE> FPDATA_WORD;
+
+// helper functions for native types
 
 // inspired by conv_layer from SOC class
 template<typename T, size_t N>

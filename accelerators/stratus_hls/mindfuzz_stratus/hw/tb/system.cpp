@@ -54,8 +54,28 @@ void system_t::config_proc()
     ESP_REPORT_INFO("learning rate location C is %.15f", (float)shift_down_C);
     ESP_REPORT_INFO("learning rate overall    is %.15f", (float)(shift_A * learning_rate * shift_down_C));
     
-#else
+#elif (USE_FX == 1)
     ESP_REPORT_INFO("learning rate is %.15f", (float)learning_rate);
+#else
+    float test_value = 2.5;
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
+    TYPE test_value_fl8 = TYPE(test_value_fl32);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
+    test_value = test_value_fl32.to_double();
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+
+    test_value = 0.025;
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
+    test_value_fl8 = TYPE(test_value_fl32);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
+    test_value = test_value_fl32.to_double();
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+
+    ESP_REPORT_INFO("converting learning rate from cynw float to native float...");
+    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> lr_32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(learning_rate);
+    ESP_REPORT_INFO("learning rate is %.15f", lr_32.to_double());
 #endif
 
     // Compute
@@ -209,7 +229,7 @@ void system_t::load_memory()
     uint32_t out_size_unround =
         num_windows*hiddens_perwin*window_size;
 
-    ESP_REPORT_INFO("out size (unrounded is %d", out_size_unround);
+    ESP_REPORT_INFO("out size (unrounded) is %d", out_size_unround);
 
     // temporary float array to store the golden output data
     gold = new float[out_size];
@@ -251,9 +271,10 @@ void system_t::load_memory()
 #else
     for (int i = 0; i < in_size / DMA_WORD_PER_BEAT; i++)  {
         sc_dt::sc_bv<DMA_WIDTH> data_bv;
-        for (int j = 0; j < DMA_WORD_PER_BEAT; j++)
+        for (int j = 0; j < DMA_WORD_PER_BEAT; j++) {
             data_bv.range((j+1) * DATA_WIDTH - 1, j * DATA_WIDTH) =
                 fp2bv<TYPE, WORD_SIZE>(TYPE(in[i * DMA_WORD_PER_BEAT + j]));
+        }
         mem[i] = data_bv;
     }
 #endif
@@ -278,7 +299,11 @@ void system_t::dump_memory()
         }
 
         TYPE out_fx = bv2fp<TYPE, WORD_SIZE>(data_bv);
+#if (USE_FX == 1)
         out[i] = (float) out_fx;
+#else
+        out[i] = out_fx.to_double();
+#endif
     }
 #else
     offset = offset / DMA_WORD_PER_BEAT;
@@ -286,7 +311,11 @@ void system_t::dump_memory()
         for (int j = 0; j < DMA_WORD_PER_BEAT; j++) {
             TYPE out_fx = bv2fp<TYPE, WORD_SIZE>(mem[offset + i].range(
                 (j + 1) * DATA_WIDTH - 1, j * DATA_WIDTH));
+#if (USE_FX == 1)
             out[i * DMA_WORD_PER_BEAT + j] = (float) out_fx;
+#else
+            out[i * DMA_WORD_PER_BEAT + j] = out_fx.to_double();
+#endif
         }
     }
 #endif
@@ -305,7 +334,10 @@ int system_t::validate()
 
     for (int j = 0; j < num_weights; j++) {
         ESP_REPORT_INFO("index %d:\tgold %0.16f\tout %0.16f\n", j, gold[j], out[j]);
-        if ((fabs(gold[j] - out[j]) / fabs(gold[j])) > ERR_TH) {
+        if (isnan(out[j])) {
+            errors++;
+        }
+        else if ((fabs(gold[j] - out[j]) / fabs(gold[j])) > ERR_TH) {
             errors++;
         }
         else {

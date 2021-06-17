@@ -44,8 +44,8 @@ TOP_VLOG_SIM_SRCS +=
 
 
 ### Xilinx Vivado hw_server ###
-FPGA_HOST ?= localhost
-XIL_HW_SERVER_PORT ?= 3121
+FPGA_HOST ?= espdev
+XIL_HW_SERVER_PORT ?= 3123
 
 
 ### Network configuration ###

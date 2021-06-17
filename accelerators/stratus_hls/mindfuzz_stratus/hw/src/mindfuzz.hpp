@@ -21,15 +21,26 @@
 #define __round_mask(x, y) ((y)-1)
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 /* <<--defines-->> */
+
+#if (USE_FX == 1) // fixed-point
+
 #if (FX_WIDTH == 16)
-
 #define DATA_WIDTH 16
-
 #else // 32
-
 #define DATA_WIDTH 32
-
 #endif // 16 vs 32
+
+#else // cynw floating point
+
+#if (FL_WIDTH == 16)
+#define DATA_WIDTH 16
+#elif (FL_WIDTH == 32)
+#define DATA_WIDTH 32
+#else // 8
+#define DATA_WIDTH 8
+#endif // FL_WIDTH
+
+#endif // fixed vs floating
 
 #define DMA_SIZE SIZE_HWORD
 
@@ -176,14 +187,14 @@ public:
                                 TYPE rate_variance);
 
     // Private local memories
-    sc_dt::sc_int<DATA_WIDTH> plm_in_ping[PLM_IN_WORD];
-    sc_dt::sc_int<DATA_WIDTH> plm_in_pong[PLM_IN_WORD];
+    FPDATA_WORD plm_in_ping[PLM_IN_WORD];
+    FPDATA_WORD plm_in_pong[PLM_IN_WORD];
     // deleted output pingpong
-    sc_dt::sc_int<DATA_WIDTH> plm_out[PLM_OUT_WORD];
+    FPDATA_WORD plm_out[PLM_OUT_WORD];
     // for relevancy detection
-    sc_dt::sc_int<DATA_WIDTH> plm_maxmin[PLM_ELEC_WORD];
-    sc_dt::sc_int<DATA_WIDTH> plm_mean[PLM_ELEC_WORD];
-    sc_dt::sc_int<DATA_WIDTH> plm_thresh[PLM_ELEC_WORD];
+    FPDATA_WORD plm_maxmin[PLM_ELEC_WORD];
+    FPDATA_WORD plm_mean[PLM_ELEC_WORD];
+    FPDATA_WORD plm_thresh[PLM_ELEC_WORD];
 
     // flattened arrays
     bool flag[CONST_NUM_WINDOWS];

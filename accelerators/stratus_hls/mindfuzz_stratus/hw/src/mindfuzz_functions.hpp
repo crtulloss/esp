@@ -272,8 +272,8 @@ void mindfuzz::relevant(uint8_t total_tsamps,
 
     // TODO sized using fixed magic numbers based on max accel config
     // need to define arrays using the sc_int datatype because they are mapped to PLMs
-    sc_dt::sc_int<DATA_WIDTH> max[PLM_ELEC_WORD];
-    sc_dt::sc_int<DATA_WIDTH> min[PLM_ELEC_WORD];
+    FPDATA_WORD max[PLM_ELEC_WORD];
+    FPDATA_WORD min[PLM_ELEC_WORD];
 
     uint32_t samp_offset;
     uint16_t window_offset;
@@ -369,7 +369,7 @@ void mindfuzz::backprop(TYPE learning_rate,
     
     // TODO FLATTEN THIS?
     // if so, need to add a_read to where input is read
-    sc_dt::sc_int<DATA_WIDTH> elecdata[PLM_ELEC_WORD];
+    FPDATA_WORD elecdata[PLM_ELEC_WORD];
 
     // some offsets useful for indexing
     uint32_t samp_offset;
@@ -390,14 +390,14 @@ void mindfuzz::backprop(TYPE learning_rate,
     const uint16_t const_diff_size = CONST_NUM_WINDOWS * CONST_WINDOW_SIZE;
     const uint16_t const_act1_size = CONST_NUM_WINDOWS * CONST_HIDDENS_PERWIN;
     
-    sc_dt::sc_int<DATA_WIDTH> dW1[const_W1_size];
+    FPDATA_WORD dW1[const_W1_size];
 
     // temporary variables to store some results
     // forward pass: activation of layer 1 and difference between out and in
     // TODO rewrite to not use arbitrarily sized arrays
-    sc_dt::sc_int<DATA_WIDTH> act1[const_act1_size];
-    sc_dt::sc_int<DATA_WIDTH> out[const_diff_size];
-    sc_dt::sc_int<DATA_WIDTH> diff[const_diff_size];
+    FPDATA_WORD act1[const_act1_size];
+    FPDATA_WORD out[const_diff_size];
+    FPDATA_WORD diff[const_diff_size];
 
     for (uint8_t iter = 0; iter < iters_perbatch; iter++) {
         
@@ -666,7 +666,7 @@ void mindfuzz::backprop(TYPE learning_rate,
     
     // TODO FLATTEN THIS?
     // if so, need to add a_read to where input is read
-    sc_dt::sc_int<DATA_WIDTH> elecdata[PLM_ELEC_WORD];
+    FPDATA_WORD elecdata[PLM_ELEC_WORD];
 
     // some offsets useful for indexing
     uint32_t samp_offset;
@@ -699,23 +699,23 @@ void mindfuzz::backprop(TYPE learning_rate,
     const uint32_t const_B2_size = CONST_NUM_WINDOWS * CONST_WINDOW_SIZE;
     const uint32_t const_B1_size = CONST_NUM_WINDOWS * CONST_HIDDENS_PERWIN;
     
-    sc_dt::sc_int<DATA_WIDTH> dW1[const_W1_size];
+    FPDATA_WORD dW1[const_W1_size];
 #ifdef do_bias
-    sc_dt::sc_int<DATA_WIDTH> dB2[const_B2_size];
-    sc_dt::sc_int<DATA_WIDTH> dB1[const_B1_size];
+    FPDATA_WORD dB2[const_B2_size];
+    FPDATA_WORD dB1[const_B1_size];
 #endif
 
     // temporary variables to store some results
     // forward pass: activation of layer 1 and difference between out and in
     // TODO rewrite to not use arbitrarily sized arrays
-    sc_dt::sc_int<DATA_WIDTH> act1[const_B1_size];
-    sc_dt::sc_int<DATA_WIDTH> diff[const_B2_size];
+    FPDATA_WORD act1[const_B1_size];
+    FPDATA_WORD diff[const_B2_size];
 
 #ifdef do_bias
     // backward pass: sample accum variable W2(x2-x0) used for backprop
     // would be used by dW1 and dB1
     // TODO rewrite to not use arbitrarily sized arrays
-    sc_dt::sc_int<DATA_WIDTH> W2xdiff[const_B1_size];
+    FPDATA_WORD W2xdiff[const_B1_size];
 #endif
 
     for (uint32_t iter = 0; iter < iters_perbatch; iter++) {

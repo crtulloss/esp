@@ -71,6 +71,7 @@ public:
         num_loads = 223;
 #ifdef split_LR
         // version with split learning rate.
+        // used for fixed point
         // learning_rate * shift_A * shift_down_C = non-split learning rate
 #if (FX_WIDTH == 16)
         learning_rate = TYPE(((float)numerator_B) / ((float)225));
@@ -78,13 +79,26 @@ public:
         learning_rate = TYPE(((float)numerator_B) / ((float)703125));
 #endif // 16 vs 32
 
+#elif (USE_FX == 0)
+        // using cynw_cm_float - need to use the correct conversion function
+
+        // learning rate math is the same as single learning rate below
+        float overall_learning_rate = ((float)0.000002) / ((float)tsamps_perbatch) / ((float)window_size);
+
+        // first convert to a 32b cynw_cm_float
+        cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> over_lr_32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(overall_learning_rate);
+
+        // then construct the object of TYPE (the actual cynw_cm_float type we're using)
+        // with the 32b cynw_cm_float as the input
+        learning_rate = TYPE(over_lr_32);
+
+        //learning_rate = FPDATA::float_to_cynw_cm_float(overall_learning_rate, sc_uint<5> exc);
+        //learning_rate = FPDATA.float_to_cynw_cm_float(overall_learning_rate, sc_uint<5> exc);
 #else
         // version with single learning rate.
         // note that calculus factor of 2 has been manually applied here
         learning_rate = TYPE(((float)0.000002) / ((float)tsamps_perbatch) / ((float)window_size));
 #endif
-// for testing with fixed point. this ^ learning rate won't fit in precision
-        //learning_rate = TYPE(((float)0.001) / ((float)tsamps_perbatch) / ((float)window_size));
         rate_mean = TYPE(0.01);
         rate_variance = TYPE(0.01);
         do_init = true;
