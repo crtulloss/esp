@@ -29,80 +29,20 @@ void system_t::config_proc()
         conf_info_t config;
         // Custom configuration
         /* <<--params-->> */
-        config.window_size = window_size;
+        config.num_loads = num_loads;
         config.batches_perload = batches_perload;
-        config.learning_rate = a_write(learning_rate);
-        config.hiddens_perwin = hiddens_perwin;
         config.tsamps_perbatch = tsamps_perbatch;
         config.num_windows = num_windows;
-        config.iters_perbatch = iters_perbatch;
-        config.num_loads = num_loads;
-        config.rate_mean = a_write(rate_mean);
-        config.rate_variance = a_write(rate_variance);
+        config.elecs_perwin = elecs_perwin;
+        config.hiddens_perwin = hiddens_perwin;
         config.do_init = do_init;
-        config.do_backprop = do_backprop;
-        config.do_thresh_update = do_thresh_update;
-
-        wait(); conf_info.write(config);
-        conf_done.write(true);
-    }
-
-    ESP_REPORT_INFO("config done");
-#ifdef split_LR
-    ESP_REPORT_INFO("learning rate location A is %.15f", (float)shift_A);
-    ESP_REPORT_INFO("learning rate location B is %.15f", (float)learning_rate);
-    ESP_REPORT_INFO("learning rate location C is %.15f", (float)shift_down_C);
-    ESP_REPORT_INFO("learning rate overall    is %.15f", (float)(shift_A * learning_rate * shift_down_C));
-    
-#elif (USE_FX == 1)
-    ESP_REPORT_INFO("learning rate is %.15f", (float)learning_rate);
-#else
-    float test_value = 2.5;
-    ESP_REPORT_INFO("test value is %.15f", test_value);
-    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
-    TYPE test_value_fl8 = TYPE(test_value_fl32);
-    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
-    test_value = test_value_fl32.to_double();
-    ESP_REPORT_INFO("test value is %.15f", test_value);
-
-    test_value = 0.025;
-    ESP_REPORT_INFO("test value is %.15f", test_value);
-    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
-    test_value_fl8 = TYPE(test_value_fl32);
-    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
-    test_value = test_value_fl32.to_double();
-    ESP_REPORT_INFO("test value is %.15f", test_value);
-
-    ESP_REPORT_INFO("converting learning rate from cynw float to native float...");
-    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> lr_32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(learning_rate);
-    ESP_REPORT_INFO("learning rate is %.15f", lr_32.to_double());
-#endif
-
-    // Compute
-    {
-        // Print information about begin time
-        sc_time begin_time = sc_time_stamp();
-        ESP_REPORT_TIME(begin_time, "BEGIN - mindfuzz");
-
-        // Wait the termination of the accelerator
-        do { wait(); } while (!acc_done.read());
-        debug_info_t debug_code = debug.read();
-
-        // Print information about end time
-        sc_time end_time = sc_time_stamp();
-        ESP_REPORT_TIME(end_time, "END - mindfuzz");
-
-        esc_log_latency(sc_object::basename(), clock_cycle(end_time - begin_time));
-        wait(); conf_done.write(false);
-    }
-
-    // Validate
-    {
-        const float ERROR_COUNT_TH = 0.0;
-        int num_weights = num_windows*(hiddens_perwin*(window_size+1) + window_size*(hiddens_perwin+1));
-        dump_memory(); // store the output in more suitable data structure if needed
-        // check the results with the golden model
-        if (validate() > ERROR_COUNT_TH)
+        config.thresh_batches = thresh_batches;
+        config.backprop_batches = backprop_batches;
+        config.shift_thresh = shift_thresh;
+        config.shift_tsamps = shift_tsamps;
+        config.shift_elecs = shift_elecs;
+        config.shift_gamma = shift_gamma;
+        config.shift_alpha = shift_alpha;
         {
             ESP_REPORT_ERROR("some errors too great: validation failed!");
         } else
@@ -131,11 +71,11 @@ void system_t::load_memory()
 
     // Input data and golden output (aligned to DMA_WIDTH makes your life easier)
 #if (DMA_WORD_PER_BEAT == 0)
-    in_words_adj = num_windows*window_size*tsamps_perbatch*batches_perload;
-    out_words_adj = num_windows*hiddens_perwin*window_size;
+    in_words_adj = num_windows*elecs_perwin*tsamps_perbatch*batches_perload;
+    out_words_adj = num_windows*hiddens_perwin*elecs_perwin;
 #else
-    in_words_adj = round_up(num_windows*window_size*tsamps_perbatch*batches_perload, DMA_WORD_PER_BEAT);
-    out_words_adj = round_up(num_windows*hiddens_perwin*window_size, DMA_WORD_PER_BEAT);
+    in_words_adj = round_up(num_windows*elecs_perwin*tsamps_perbatch*batches_perload, DMA_WORD_PER_BEAT);
+    out_words_adj = round_up(num_windows*hiddens_perwin*elecs_perwin, DMA_WORD_PER_BEAT);
 #endif
 
     in_size = in_words_adj * (num_loads);
@@ -169,15 +109,15 @@ void system_t::load_memory()
 
     // dimensions of data relative to CSV 2D
     // in_size = num_loads * batches_perload * tsamps_perbatch *  // num rows
-    //           num_windows * window_size                        // num cols
+    //           num_windows * elecs_perwin                        // num cols
 
     ESP_REPORT_INFO("in size is %d", in_size);
 
     for (uint32_t row = 0; row < num_loads*batches_perload*tsamps_perbatch; row++) {
 
-        uint32_t row_offset = row * num_windows * window_size;
+        uint32_t row_offset = row * num_windows * elecs_perwin;
 
-        for (uint32_t col = 0; col < num_windows*window_size; col++) {
+        for (uint32_t col = 0; col < num_windows*elecs_perwin; col++) {
 
             // acquire 2D array element
             // there is one extra header row in the CSV
@@ -227,7 +167,7 @@ void system_t::load_memory()
 
     // if out_size is odd, out_size will be too large for this loop
     uint32_t out_size_unround =
-        num_windows*hiddens_perwin*window_size;
+        num_windows*hiddens_perwin*elecs_perwin;
 
     ESP_REPORT_INFO("out size (unrounded) is %d", out_size_unround);
 
@@ -240,7 +180,7 @@ void system_t::load_memory()
 
     for (uint32_t hidden = 0; hidden < hiddens_perwin; hidden++) {
 
-        for (uint32_t electrode = 0; electrode < window_size; electrode++) {
+        for (uint32_t electrode = 0; electrode < elecs_perwin; electrode++) {
 
             // rows to skip: total loads and header row for previous hiddens
             // row to get from this hidden: num_loads - 1 + 1
@@ -254,7 +194,7 @@ void system_t::load_memory()
             sselem >> float_element;
             
             // put it in the array
-            gold[hidden*window_size + electrode] = float_element;
+            gold[hidden*elecs_perwin + electrode] = float_element;
         }
     }
     
@@ -330,7 +270,7 @@ int system_t::validate()
     const float ERR_TH = 0.05;
 
     // note that this will not be affected by rounding
-    int num_weights = num_windows*hiddens_perwin*window_size;
+    int num_weights = num_windows*hiddens_perwin*elecs_perwin;
 
     for (int j = 0; j < num_weights; j++) {
         ESP_REPORT_INFO("index %d:\tgold %0.16f\tout %0.16f\n", j, gold[j], out[j]);

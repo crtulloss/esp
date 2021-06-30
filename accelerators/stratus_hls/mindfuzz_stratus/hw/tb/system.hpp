@@ -61,14 +61,23 @@ public:
         acc->debug(debug);
 
         /* <<--params-default-->> */
-        window_size = 32;
-        batches_perload = 1;
-        hiddens_perwin = 6;
-        tsamps_perbatch = 90;
-// edited for mindfuzz unit testing
-        num_windows = 1;
-        iters_perbatch = 1;
         num_loads = 223;
+        batches_perload = 1;
+        tsamps_perbatch = 16;
+        num_windows = 1;
+        elecs_perwin = 32;
+        hiddens_perwin = 6;
+        do_init = true;
+        thresh_batches = 1875;
+        backprop_batches = 1875;
+        shift_thresh = 12;
+        shift_tsamps = 4;
+        shift_elecs = 5;
+        shift_gamma = 6;
+        shift_alpha = 12;
+
+// might be useful if we need to do float conversions
+/*
 #ifdef split_LR
         // version with split learning rate.
         // used for fixed point
@@ -83,7 +92,7 @@ public:
         // using cynw_cm_float - need to use the correct conversion function
 
         // learning rate math is the same as single learning rate below
-        float overall_learning_rate = ((float)0.000002) / ((float)tsamps_perbatch) / ((float)window_size);
+        float overall_learning_rate = ((float)0.000002) / ((float)tsamps_perbatch) / ((float)elecs_perwin);
 
         // first convert to a 32b cynw_cm_float
         cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> over_lr_32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(overall_learning_rate);
@@ -97,14 +106,10 @@ public:
 #else
         // version with single learning rate.
         // note that calculus factor of 2 has been manually applied here
-        learning_rate = TYPE(((float)0.000002) / ((float)tsamps_perbatch) / ((float)window_size));
+        learning_rate = TYPE(((float)0.000002) / ((float)tsamps_perbatch) / ((float)elecs_perwin));
 #endif
-        rate_mean = TYPE(0.01);
-        rate_variance = TYPE(0.01);
-        do_init = true;
-        do_backprop = true;
-        do_thresh_update = true;
-    }
+*/
+   }
 
     // Processes
 
@@ -122,19 +127,20 @@ public:
 
     // Accelerator-specific data
     /* <<--params-->> */
-    int32_t window_size;
+    int32_t num_loads;
     int32_t batches_perload;
-    TYPE learning_rate;
-    int32_t hiddens_perwin;
     int32_t tsamps_perbatch;
     int32_t num_windows;
-    int32_t iters_perbatch;
-    int32_t num_loads;
-    TYPE rate_mean;
-    TYPE rate_variance;
+    int32_t elecs_perwin;
+    int32_t hiddens_perwin;
     bool do_init;
-    bool do_backprop;
-    bool do_thresh_update;
+    int32_t thresh_batches;
+    int32_t backprop_batches;
+    int32_t shift_thresh;
+    int32_t shift_tsamps;
+    int32_t shift_elecs;
+    int32_t shift_gamma;
+    int32_t shift_alpha;
 
     uint32_t in_words_adj;
     uint32_t out_words_adj;

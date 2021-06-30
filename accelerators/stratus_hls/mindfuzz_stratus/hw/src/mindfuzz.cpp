@@ -32,19 +32,20 @@ void mindfuzz::load_input()
     }
 
     // Config
-    uint8_t window_size;
+    uint16_t num_loads;
     uint8_t batches_perload;
-    TYPE learning_rate;
-    uint8_t hiddens_perwin;
     uint8_t tsamps_perbatch;
     uint16_t num_windows;
-    uint8_t iters_perbatch;
-    uint16_t num_loads;
-    TYPE rate_mean;
-    TYPE rate_variance;
+    uint8_t elecs_perwin;
+    uint8_t hiddens_perwin;
     bool do_init;
-    bool do_backprop;
-    bool do_thresh_update;
+    uint16_t thresh_batches;
+    uint16_t backprop_batches;
+    uint8_t shift_thresh;
+    uint8_t shift_tsamps;
+    uint8_t shift_elecs;
+    uint8_t shift_gamma;
+    uint8_t shift_alpha;
 
     // declare some necessary variables
     // int32_t load_batches;
@@ -55,19 +56,20 @@ void mindfuzz::load_input()
         conf_info_t config = this->conf_info.read();
 
         // User-defined config code
-        window_size = config.window_size;
+        num_loads = config.num_loads;
         batches_perload = config.batches_perload;
-        learning_rate = a_read(config.learning_rate);
-        hiddens_perwin = config.hiddens_perwin;
         tsamps_perbatch = config.tsamps_perbatch;
         num_windows = config.num_windows;
-        iters_perbatch = config.iters_perbatch;
-        num_loads = config.num_loads;
-        rate_mean = a_read(config.rate_mean);
-        rate_variance = a_read(config.rate_variance);
+        elecs_perwin = config.elecs_perwin;
+        hiddens_perwin = config.hiddens_perwin;
         do_init = config.do_init;
-        do_backprop = config.do_backprop;
-        do_thresh_update = config.do_thresh_update;
+        thresh_batches = config.thresh_batches;
+        backprop_batches = config.backprop_batches;
+        shift_thresh = config.shift_thresh;
+        shift_tsamps = config_shift_tsamps;
+        shift_elecs = config_shift_elecs;
+        shift_gamma = config_shift_gamma;
+        shift_alpha = config_shift_alpha;
     }
 
     // Load
@@ -86,10 +88,10 @@ void mindfuzz::load_input()
 // for 16b data, DMA_WORD_PER_BEAT = 2
 // DMA_WORD_PER_BEAT would equal 0 if WORD size > BEAT size
 #if (DMA_WORD_PER_BEAT == 0)
-            uint32_t length = num_windows*window_size*tsamps_perbatch*batches_perload;
+            uint32_t length = num_windows*elecs_perwin*tsamps_perbatch*batches_perload;
 #else
             // broke up this computation and added some waits in order to improve schedule
-            uint32_t length_dum = num_windows*window_size*tsamps_perbatch*batches_perload;
+            uint32_t length_dum = num_windows*elecs_perwin*tsamps_perbatch*batches_perload;
             wait();
             uint32_t length = round_up(length_dum, DMA_WORD_PER_BEAT);
 #endif
@@ -187,20 +189,21 @@ void mindfuzz::compute_kernel()
     }
 
     // Config
-    uint8_t window_size;
+    uint16_t num_loads;
     uint8_t batches_perload;
-    TYPE learning_rate;
-    uint8_t hiddens_perwin;
     uint8_t tsamps_perbatch;
     uint16_t num_windows;
-    uint8_t iters_perbatch;
-    uint16_t num_loads;
-    TYPE rate_mean;
-    TYPE rate_variance;
+    uint8_t elecs_perwin;
+    uint8_t hiddens_perwin;
     bool do_init;
-    bool do_backprop;
-    bool do_thresh_update;
-
+    uint16_t thresh_batches;
+    uint16_t backprop_batches;
+    uint8_t shift_thresh;
+    uint8_t shift_tsamps;
+    uint8_t shift_elecs;
+    uint8_t shift_gamma;
+    uint8_t shift_alpha;
+   
     // declare some necessary variables
     // int32_t load_batches;
     uint8_t total_tsamps;
@@ -214,25 +217,26 @@ void mindfuzz::compute_kernel()
         conf_info_t config = this->conf_info.read();
 
         // User-defined config code
-        window_size = config.window_size;
+        num_loads = config.num_loads;
         batches_perload = config.batches_perload;
-        learning_rate = a_read(config.learning_rate);
-        hiddens_perwin = config.hiddens_perwin;
         tsamps_perbatch = config.tsamps_perbatch;
         num_windows = config.num_windows;
-        iters_perbatch = config.iters_perbatch;
-        num_loads = config.num_loads;
-        rate_mean = a_read(config.rate_mean);
-        rate_variance = a_read(config.rate_variance);
+        elecs_perwin = config.elecs_perwin;
+        hiddens_perwin = config.hiddens_perwin;
         do_init = config.do_init;
-        do_backprop = config.do_backprop;
-        do_thresh_update = config.do_thresh_update;
+        thresh_batches = config.thresh_batches;
+        backprop_batches = config.backprop_batches;
+        shift_thresh = config.shift_thresh;
+        shift_tsamps = config_shift_tsamps;
+        shift_elecs = config_shift_elecs;
+        shift_gamma = config_shift_gamma;
+        shift_alpha = config_shift_alpha;
         
         // total size of a load batch is useful for relevancy check
         total_tsamps = tsamps_perbatch * batches_perload;
 
         // some dimension computation useful for backprop
-        input_dimension = window_size;
+        input_dimension = elecs_perwin;
         layer1_dimension = hiddens_perwin;
 
         W1_size = num_windows*layer1_dimension*input_dimension;
@@ -251,8 +255,8 @@ void mindfuzz::compute_kernel()
         TYPE initial_thresh = (TYPE)0.5;
 
         for (uint16_t window = 0; window < num_windows; window++) {
-            uint16_t window_offset = window * window_size;
-            for (uint8_t elec = 0; elec < window_size; elec++) {
+            uint16_t window_offset = window * elecs_perwin;
+            for (uint8_t elec = 0; elec < elecs_perwin; elec++) {
                 plm_mean[window_offset + elec] = a_write(initial_mean);
                 plm_thresh[window_offset + elec] = a_write(initial_thresh);
             }
@@ -286,7 +290,7 @@ void mindfuzz::compute_kernel()
             // the training relevance of each window
             relevant(total_tsamps,
                      num_windows,
-                     window_size,
+                     elecs_perwin,
                      flag,
                      ping);
 
@@ -298,7 +302,7 @@ void mindfuzz::compute_kernel()
             // after some number of batches
             if (do_thresh_update) {
                 thresh_update_variance(num_windows,
-                                       window_size,
+                                       elecs_perwin,
                                        rate_mean,
                                        rate_variance);
             }
@@ -328,7 +332,7 @@ void mindfuzz::compute_kernel()
             // this piece of indata (load_batch) done
 
 /*
-            uint32_t in_length = num_windows*window_size*tsamps_perbatch*batches_perload;
+            uint32_t in_length = num_windows*elecs_perwin*tsamps_perbatch*batches_perload;
 
             // since we have a chunking factor of 1, this only does one iteration
             // TODO add parameter to pass to backprop() so that we can
@@ -370,19 +374,20 @@ void mindfuzz::store_output()
     }
 
     // Config
-    uint8_t window_size;
+    uint16_t num_loads;
     uint8_t batches_perload;
-    TYPE learning_rate;
-    uint8_t hiddens_perwin;
     uint8_t tsamps_perbatch;
     uint16_t num_windows;
-    uint8_t iters_perbatch;
-    uint16_t num_loads;
-    TYPE rate_mean;
-    TYPE rate_variance;
+    uint8_t elecs_perwin;
+    uint8_t hiddens_perwin;
     bool do_init;
-    bool do_backprop;
-    bool do_thresh_update;
+    uint16_t thresh_batches;
+    uint16_t backprop_batches;
+    uint8_t shift_thresh;
+    uint8_t shift_tsamps;
+    uint8_t shift_elecs;
+    uint8_t shift_gamma;
+    uint8_t shift_alpha;
 
     // declare some necessary variables
     // int32_t load_batches;
@@ -391,21 +396,22 @@ void mindfuzz::store_output()
 
         cfg.wait_for_config(); // config process
         conf_info_t config = this->conf_info.read();
-
+        
         // User-defined config code
-        window_size = config.window_size;
+        num_loads = config.num_loads;
         batches_perload = config.batches_perload;
-        learning_rate = a_read(config.learning_rate);
-        hiddens_perwin = config.hiddens_perwin;
         tsamps_perbatch = config.tsamps_perbatch;
         num_windows = config.num_windows;
-        iters_perbatch = config.iters_perbatch;
-        num_loads = config.num_loads;
-        rate_mean = a_read(config.rate_mean);
-        rate_variance = a_read(config.rate_variance);
+        elecs_perwin = config.elecs_perwin;
+        hiddens_perwin = config.hiddens_perwin;
         do_init = config.do_init;
-        do_backprop = config.do_backprop;
-        do_thresh_update = config.do_thresh_update;
+        thresh_batches = config.thresh_batches;
+        backprop_batches = config.backprop_batches;
+        shift_thresh = config.shift_thresh;
+        shift_tsamps = config_shift_tsamps;
+        shift_elecs = config_shift_elecs;
+        shift_gamma = config_shift_gamma;
+        shift_alpha = config_shift_alpha;
     }
 
     // Store
@@ -416,19 +422,19 @@ void mindfuzz::store_output()
 
 // compute the DMA offset due to input data
 #if (DMA_WORD_PER_BEAT == 0)
-        uint32_t store_offset = (num_windows*window_size*tsamps_perbatch*batches_perload) * num_loads;
+        uint32_t store_offset = (num_windows*elecs_perwin*tsamps_perbatch*batches_perload) * num_loads;
 #else
-        uint32_t store_offset = round_up(num_windows*window_size*tsamps_perbatch*batches_perload, DMA_WORD_PER_BEAT) * num_loads;
+        uint32_t store_offset = round_up(num_windows*elecs_perwin*tsamps_perbatch*batches_perload, DMA_WORD_PER_BEAT) * num_loads;
 #endif
         uint32_t offset = store_offset;
 
         wait();
 // length of data to be stored
 #if (DMA_WORD_PER_BEAT == 0)
-        uint32_t length = num_windows*hiddens_perwin*window_size;
+        uint32_t length = num_windows*hiddens_perwin*elecs_perwin;
 #else
         // broke up this computation and added some waits in order to improve schedule
-        uint32_t length_dum = num_windows*hiddens_perwin*window_size;
+        uint32_t length_dum = num_windows*hiddens_perwin*elecs_perwin;
         wait();
         uint32_t length = round_up(length_dum, DMA_WORD_PER_BEAT);
 #endif
