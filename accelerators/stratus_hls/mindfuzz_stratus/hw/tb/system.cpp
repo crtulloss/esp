@@ -43,6 +43,68 @@ void system_t::config_proc()
         config.shift_elecs = shift_elecs;
         config.shift_gamma = shift_gamma;
         config.shift_alpha = shift_alpha;
+        config.thresh_mult = a_write(thresh_mult);
+
+        wait(); conf_info.write(config);
+        conf_done.write(true);
+    }
+
+    ESP_REPORT_INFO("config done");
+#ifdef split_LR
+    ESP_REPORT_INFO("learning rate location A is %.15f", (float)shift_A);
+    ESP_REPORT_INFO("learning rate location B is %.15f", (float)learning_rate);
+    ESP_REPORT_INFO("learning rate location C is %.15f", (float)shift_down_C);
+    ESP_REPORT_INFO("learning rate overall    is %.15f", (float)(shift_A * learning_rate * shift_down_C));
+
+#elif (USE_FX == 1)
+    ESP_REPORT_INFO("learning rate is %.15f", (float)learning_rate);
+#else
+    float test_value = 2.5;
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
+    TYPE test_value_fl8 = TYPE(test_value_fl32);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
+    test_value = test_value_fl32.to_double();
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+
+    test_value = 0.025;
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value);
+    test_value_fl8 = TYPE(test_value_fl32);
+    test_value_fl32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(test_value_fl8);
+    test_value = test_value_fl32.to_double();
+    ESP_REPORT_INFO("test value is %.15f", test_value);
+
+    ESP_REPORT_INFO("converting learning rate from cynw float to native float...");
+    cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1> lr_32 = cynw_cm_float<8, 32, CYNW_BEST_ACCURACY, CYNW_NEAREST, 1>(learning_rate);
+    ESP_REPORT_INFO("learning rate is %.15f", lr_32.to_double());
+#endif
+
+    // Compute
+    {
+        // Print information about begin time
+        sc_time begin_time = sc_time_stamp();
+        ESP_REPORT_TIME(begin_time, "BEGIN - mindfuzz");
+        
+        // Wait the termination of the accelerator
+        do { wait(); } while (!acc_done.read());
+        debug_info_t debug_code = debug.read();
+        
+        // Print information about end time
+        sc_time end_time = sc_time_stamp();
+        ESP_REPORT_TIME(end_time, "END - mindfuzz");
+        
+        esc_log_latency(sc_object::basename(), clock_cycle(end_time - begin_time));
+        wait(); conf_done.write(false);
+    }
+        
+    // Validate
+    {
+        const float ERROR_COUNT_TH = 0.0;
+        int num_weights = num_windows*(hiddens_perwin*(window_size+1) + window_size*(hiddens_perwin+1));
+        dump_memory(); // store the output in more suitable data structure if needed
+        // check the results with the golden model
+        if (validate() > ERROR_COUNT_TH)
         {
             ESP_REPORT_ERROR("some errors too great: validation failed!");
         } else

@@ -46,6 +46,7 @@ void mindfuzz::load_input()
     uint8_t shift_elecs;
     uint8_t shift_gamma;
     uint8_t shift_alpha;
+    TYPE thresh_mult;
 
     // declare some necessary variables
     // int32_t load_batches;
@@ -66,10 +67,11 @@ void mindfuzz::load_input()
         thresh_batches = config.thresh_batches;
         backprop_batches = config.backprop_batches;
         shift_thresh = config.shift_thresh;
-        shift_tsamps = config_shift_tsamps;
-        shift_elecs = config_shift_elecs;
-        shift_gamma = config_shift_gamma;
-        shift_alpha = config_shift_alpha;
+        shift_tsamps = config.shift_tsamps;
+        shift_elecs = config.shift_elecs;
+        shift_gamma = config.shift_gamma;
+        shift_alpha = config.shift_alpha;
+        thresh_mult = a_read(config.thresh_mult);
     }
 
     // Load
@@ -203,13 +205,8 @@ void mindfuzz::compute_kernel()
     uint8_t shift_elecs;
     uint8_t shift_gamma;
     uint8_t shift_alpha;
+    TYPE thresh_mult;
    
-    // declare some necessary variables
-    // int32_t load_batches;
-    uint8_t total_tsamps;
-    uint8_t input_dimension;
-    uint8_t layer1_dimension;
-    uint32_t W1_size;
     {
         HLS_PROTO("compute-config");
 
@@ -227,56 +224,43 @@ void mindfuzz::compute_kernel()
         thresh_batches = config.thresh_batches;
         backprop_batches = config.backprop_batches;
         shift_thresh = config.shift_thresh;
-        shift_tsamps = config_shift_tsamps;
-        shift_elecs = config_shift_elecs;
-        shift_gamma = config_shift_gamma;
-        shift_alpha = config_shift_alpha;
-        
-        // total size of a load batch is useful for relevancy check
-        total_tsamps = tsamps_perbatch * batches_perload;
-
-        // some dimension computation useful for backprop
-        input_dimension = elecs_perwin;
-        layer1_dimension = hiddens_perwin;
-
-        W1_size = num_windows*layer1_dimension*input_dimension;
+        shift_tsamps = config.shift_tsamps;
+        shift_elecs = config.shift_elecs;
+        shift_gamma = config.shift_gamma;
+        shift_alpha = config.shift_alpha;
+        thresh_mult = a_read(config.thresh_mult);
     }
+
+    // some info that the functions will  need
+    uint8_t total_tsamps = batches_perload*tsamps_perbatch;
+    uint16_t num_electrodes = num_windows*window_size;
 
 
     // Compute
 
+    // initialize - note that this will happen at beginning of accel invocation,
+    // because the do_init config param must be configured.
     if (do_init) {
-    
-        // initialize spike/noise means and thresholds
 
+        // initialize sigma estimates
+    
         // initial value for each
-        // TODO fix these
-        TYPE initial_mean = (TYPE)1.0;
-        TYPE initial_thresh = (TYPE)0.5;
+        TYPE initial_sigma = (TYPE)0.0;
 
         for (uint16_t window = 0; window < num_windows; window++) {
             uint16_t window_offset = window * elecs_perwin;
             for (uint8_t elec = 0; elec < elecs_perwin; elec++) {
-                plm_mean[window_offset + elec] = a_write(initial_mean);
-                plm_thresh[window_offset + elec] = a_write(initial_thresh);
+                plm_sigma[window_offset + elec] = a_write(initial_sigma);
             }
         }
 
-        // initialize weights 
-
-        // initial value for each weight
-        TYPE initial_weight = (TYPE)0.03125;
-
-        // initialize W1
-        for (uint32_t weight = 0; weight < W1_size; weight++) {
-            plm_out[weight] =
-                a_write(initial_weight);
-        }
+        // reset the counters to keep track of the number of batches done for thresholding and backprop
+        thresh_complete = 0;
+        backprop_complete = 0;
     }
-    
+
     bool ping = true;
 
-    // actual computation
     {
         for (uint16_t b = 0; b < num_loads; b++)
         {
@@ -285,51 +269,89 @@ void mindfuzz::compute_kernel()
             // see below for old code with chunking
             this->compute_load_handshake();
 
-            // run relevancy check
-            // this will update the flag array to reflect
-            // the training relevance of each window
-            relevant(total_tsamps,
-                     num_windows,
-                     elecs_perwin,
-                     flag,
-                     ping);
+	    // train threshold
+	    if (thresh_complete < thresh_batches) {
 
-            // run threshold update
-            // this will take the max-min computed in relevant for each electrode
-            // and update the variance estimate accordingly
-            // NOTE do_thresh_update is a variable local to this function
-            // so in addition to being configable, it can be shut off here
-            // after some number of batches
-            if (do_thresh_update) {
-                thresh_update_variance(num_windows,
-                                       elecs_perwin,
-                                       rate_mean,
-                                       rate_variance);
+		thresh_train(num_windows,
+                             elecs_perwin,
+                             shift_thresh,
+                             ping);
+
+                thresh_complete++;
+
+	    }
+
+            // on the first load after completing thresh training, do some additional post-proc
+            if (thresh_complete == thresh_batches {
+ 
+                thresh_calculate(num_windows,
+                                 elecs_perwin,
+                                 shift_elecs,
+                                 thresh_mult);
+
+                // initialize weights and mu
+
+	        // initial value for each weight
+		// start with 1 and apply a shift based on electrodes per window
+		TYPE initial_weight = (TYPE)1.0;
+                initial_weight = bitshift(initial_weight, shift_elecs, false);
+
+                // TODO declare and calculate W1 size above if it's needed for autoenc
+		// initialize W1
+		for (uint32_t weight = 0; weight < W1_size; weight++) {
+		    plm_out[weight] =
+			a_write(initial_weight);
+		}
+
+                // initialize mu
+
+                TYPE winsig;
+                uint16_t window_offset;
+
+                for (uint16_t window = 0; window < num_windows; window++) {
+
+                    window_offset = window*hiddens_perwin;
+
+                    // get the average simga for this window
+                    winsig = a_read(plm_winsigma[window]);
+
+                    // bit shift by number of electrodes
+                    winsig = bitshift(winsig, shift_elecs, false);
+
+                    for (uint8_t hidden = 0; hidden < hiddens_perwin; hidden++) {
+
+                        plm_mu[window_offset + hidden] = a_write(winsig);
+                    }
+                }
+
+                thresh_complete++;
             }
 
-            if (do_backprop) {
+            // proceed
+            if (thresh_complete > thresh_batches) {
+
+                relevant(num_windows,
+                         elecs_perwin,
+                         num_electrodes,
+                         total_tsamps,
+                         ping);
+
                 // run backprop for each compute batch in this load batch
                 for (uint16_t batch = 0; batch < batches_perload; batch++) {
 
-                    // pass relevant parameters like sizes, flag, and pingpong
+                    // pass relevant parameters like flag, pingpong, and how many training batches have run
+                    // within autoenc, we will check whether to run backprop or just forward.
                     // backprop will access weights, training data, directly (they are in PLMs)
-                    backprop(learning_rate,
-                             tsamps_perbatch,
-                             num_windows,
-                             iters_perbatch,
-                             input_dimension,
-                             layer1_dimension,
-                             W1_size,
-                             batch,
-                             flag,
-                             ping);
+                    autoenc(
+                            // TODO
+                           );
 
-                    // this compute batch done
+                    // this autoenc batch done
                 }
             }
 
             ping = !ping;
-            // this piece of indata (load_batch) done
+            // this data load done
 
 /*
             uint32_t in_length = num_windows*elecs_perwin*tsamps_perbatch*batches_perload;
@@ -347,8 +369,8 @@ void mindfuzz::compute_kernel()
 */
 
         }
-        // all batches done (all backprop iterations complete)
-        // we only store once, once all backprop iterations are complete
+        // all loads done 
+        // TODO update for new output schedule
         this->compute_store_handshake();
     }
     // Conclude
@@ -388,6 +410,7 @@ void mindfuzz::store_output()
     uint8_t shift_elecs;
     uint8_t shift_gamma;
     uint8_t shift_alpha;
+    TYPE thresh_mult;
 
     // declare some necessary variables
     // int32_t load_batches;
@@ -408,10 +431,11 @@ void mindfuzz::store_output()
         thresh_batches = config.thresh_batches;
         backprop_batches = config.backprop_batches;
         shift_thresh = config.shift_thresh;
-        shift_tsamps = config_shift_tsamps;
-        shift_elecs = config_shift_elecs;
-        shift_gamma = config_shift_gamma;
-        shift_alpha = config_shift_alpha;
+        shift_tsamps = config.shift_tsamps;
+        shift_elecs = config.shift_elecs;
+        shift_gamma = config.shift_gamma;
+        shift_alpha = config.shift_alpha;
+        thresh_mult = a_read(config.thresh_mult);
     }
 
     // Store

@@ -33,6 +33,7 @@ public:
         this->shift_elecs = 5;
         this->shift_gamma = 6;
         this->shift_alpha = 12;
+        this->thresh_mult = 6;
     }
 
     conf_info_t(
@@ -51,6 +52,7 @@ public:
         int32_t shift_elecs,
         int32_t shift_gamma,
         int32_t shift_alpha,
+        int32_t thresh_mult
         )
     {
         /* <<--ctor-custom-->> */
@@ -68,6 +70,7 @@ public:
         this->shift_elecs = shift_elecs;
         this->shift_gamma = shift_gamma;
         this->shift_alpha = shift_alpha;
+        this->thresh_mult = thresh_mult;
     }
 
     // equals operator
@@ -88,6 +91,7 @@ public:
         if (shift_elecs != rhs.shift_elecs) return false;
         if (shift_gamma != rhs.shift_gamma) return false;
         if (shift_alpha != rhs.shift_alpha) return false;
+        if (thresh_mult != rhs.thresh_mult) return false;
         return true;
     }
 
@@ -107,6 +111,7 @@ public:
         shift_elecs = other.shift_elecs;
         shift_gamma = other.shift_gamma;
         shift_alpha = other.shift_alpha;
+        thresh_mult = other.thresh_mult;
         return *this;
     }
 
@@ -131,6 +136,7 @@ public:
         os << "shift_elecs = " << a_read(conf_info.shift_elecs) << "";
         os << "shift_gamma = " << a_read(conf_info.shift_gamma) << "";
         os << "shift_alpha = " << conf_info.shift_alpha << "";
+        os << "thresh_mult = " << conf_info.thresh_mult << "";
         os << "}";
         return os;
     }
@@ -148,6 +154,7 @@ public:
         int32_t shift_elecs;
         int32_t shift_gamma;
         bool shift_alpha;
+        int32_t thresh_mult;
 };
 
 #endif // __MINDFUZZ_CONF_INFO_HPP__

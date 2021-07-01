@@ -75,6 +75,7 @@ public:
         shift_elecs = 5;
         shift_gamma = 6;
         shift_alpha = 12;
+        thresh_mult = (TYPE)6.0;
 
 // might be useful if we need to do float conversions
 /*
@@ -141,6 +142,7 @@ public:
     int32_t shift_elecs;
     int32_t shift_gamma;
     int32_t shift_alpha;
+    TYPE thresh_mult;
 
     uint32_t in_words_adj;
     uint32_t out_words_adj;

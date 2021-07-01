@@ -15,5 +15,6 @@
     <param name="shift_elecs" desc="shift_elecs" />
     <param name="shift_gamma" desc="shift_gamma" />
     <param name="shift_alpha" desc="shift_alpha" />
+    <param name="thresh_mult" desc="thresh_mult" />
   </accelerator>
 </sld>

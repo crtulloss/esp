@@ -15,8 +15,8 @@
 // directives specific to cynw fixed-point data types
 
 // integer lengths for different fixed-point widths
-#define FX64_IL 15
-#define FX32_IL 15
+#define FX64_IL 32
+#define FX32_IL 16
 #define FX16_IL 8 // TODO what is the correct length?
 
 #if (FX_WIDTH == 32)
@@ -58,7 +58,7 @@
 // to test whether applying learning rate in stages gives same result
 // as single learning rate
 // this should only be necessary for fixed point
-#define split_LR
+//#define split_LR
 
 #else // floating point
 // directives specific to cynw floating point
